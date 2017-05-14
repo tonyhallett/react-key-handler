@@ -101,7 +101,8 @@ function isContentEditable(element: HTMLElement): boolean {
  */
 
 export function matchesKeyboardEvent(event: KeyboardEvent, { keyCode, keyValue }: KeyboardKey): boolean {
-  if (!isNullOrUndefined(keyValue)) {
+    if (!isNullOrUndefined(keyValue)) {
+        //console.log("checking " + keyValue);
     return keyValue === eventKey(event);
   }
 

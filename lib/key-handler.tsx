@@ -14,14 +14,27 @@ type KeyEventNames = "keydown" | "keypress" | "keyup";
  * KeyHandler component.
  */
 
-export type AllModMatch = string[];
+export type AnyModMatch = string[];
 
+export function keyModifiersAny():KeyModifiers {
+    return {
+        altKey: true,
+        ctrlKey: true,
+        shiftKey: true,
+        none: true,
+        andOr: AndOr.Or
+    }
+}
+export enum AndOr {
+    Or, AndLoose, AndExact
 
-export enum KeyModifiers {
-    alt=1,
-    ctrl = 2,
-    shift = 4,
-    all=8
+}
+export interface KeyModifiers {
+    altKey:boolean,
+    ctrlKey:boolean,
+    shiftKey: boolean,
+    none:boolean,
+    andOr: AndOr
 }
 export interface ModForKeys {
     modifiers: KeyModifiers,
@@ -33,7 +46,7 @@ export interface ModKey {
     id?:any//when used from the HOC the id will be set to the callback string name
 }
 //used by the KeyHandler component
-export type KeyMatches = AllModMatch | ModForKeys | Array<ModKey>;
+export type KeyMatches = AnyModMatch | ModForKeys | Array<ModKey>;
 
 
 
@@ -43,11 +56,9 @@ export type KeyMatches = AllModMatch | ModForKeys | Array<ModKey>;
 export interface KeyHandlerProps {
     keyValue?: string,
     keyCode?: number,
-    keyCodes?: number[],//will delete 
-    keyValues?: string[],//will delete
     keyMatches?:KeyMatches,
     keyEventName?: KeyEventNames,
-    onKeyHandle?: (event: KeyboardEvent) => void,
+    onKeyHandle?: (event: KeyboardEvent,matchingIds:any[]) => void,
 }
 export class KeyHandler extends React.Component<KeyHandlerProps,null> {
   static defaultProps = {
@@ -83,9 +94,55 @@ export class KeyHandler extends React.Component<KeyHandlerProps,null> {
   render(): null {
     return null;
   }
+  isModifierMatch = (event: KeyboardEvent, modifiers: KeyModifiers) => {
+      var match = true;
+      var modKeys = {
+          altKey: modifiers.altKey,
+          ctrlKey: modifiers.ctrlKey,
+          shiftKey: modifiers.shiftKey
+      }
+      var none = modifiers.none;
+      if (modifiers.andOr !== AndOr.Or) {
+          if (none) {
+              throw new Error("cannot have none and and");
+          }
+          for (var modKey in modKeys) {
+              if (modKeys[modKey]) {
+                  match = event[modKey];
+                  if (!match) {
+                      break;
+                  }
+              }
+          }
+      } else {
 
+          //console.log("in or")//these needs to change to cater for none 
+          var noModifiers = true;
+          for (var modKey in modKeys) {
+              if (modKeys[modKey]) {
+                  //console.log("Looking at event " + modKey);
+                  match = event[modKey];
+                  if (noModifiers) {
+                      noModifiers = !match;
+                  }
+                  
+                  if (match) {
+                      //console.log("match key: " + modKey);
+                      break;
+                  }
+              }
+          }
+          if (!match && noModifiers&&none) {
+              //console.log('no modifiers and none');
+              match = true;
+          }
+      }
+      //console.log('is match: ' + match)
+      return match;
+  }
   handleKey = (event: KeyboardEvent): void => {
-      const { keyValue, keyCode, keyCodes, keyValues, onKeyHandle } = this.props;
+      //console.log("in handle key");
+      const { keyValue, keyCode, keyMatches, onKeyHandle } = this.props;
     if (!onKeyHandle) {
       return;
     }
@@ -94,33 +151,55 @@ export class KeyHandler extends React.Component<KeyHandlerProps,null> {
       if (target instanceof HTMLElement && isInput(target as HTMLElement)) {
          return;
     }
-      //might as well remove the singular;
-      var matches = matchesKeyboardEvent(event, { keyValue, keyCode } as KeyboardKey);
-      if (!matches) {
-          if (keyCodes) {
-              for (let i = 0; i < keyCodes.length; i++) {
-                  var keyC = keyCodes[i];
-                  matches = matchesKeyboardEvent(event, { keyCode: keyC } as KeyboardKey); 
-                  if (matches) {
-                        break;
+      //console.log("Before keyMatches");
+      var matchingIds: any[] = [];
+      var matches: boolean;
+      if (keyMatches) {
+          //console.log("In key matches");
+          if (keyMatches instanceof Array) {
+              for (var i = 0; i < keyMatches.length; i++) {
+                  var keyOrModKey = keyMatches[i];
+                  var key: string;
+                  var mod = keyModifiersAny();
+                  var id: any;
+                  if (typeof keyOrModKey === 'string') {
+                      key = keyOrModKey;
+                  } else {
+                      key = keyOrModKey.key;
+                      mod = keyOrModKey.modifiers;
+                      id = keyOrModKey.id;
+                  }
+                  var kbKey: KeyboardKey = { keyValue: key, keyCode: null } as KeyboardKey;
+
+                  var possibleMatch = matchesKeyboardEvent(event, kbKey );
+                  if (possibleMatch) {//dependent on which one we break - todo------------------- have a temp matches as if have a match if the next is not then still have a match
+                      //console.log(key + " is possible match");
+                      matches = this.isModifierMatch(event, mod);
+                      if (matches) {
+                          matchingIds.push(id);
+                          break;
+                      }
+                  }
+              }
+          } else {
+              var keys = keyMatches.keys;
+              for (var i = 0; i < keys.length; i++) {
+                  var key = keys[i];
+                  var possibleMatch = matchesKeyboardEvent(event, { keyValue:key, keyCode:null } as KeyboardKey);
+                  if (possibleMatch) {
+                      matches = this.isModifierMatch(event, keyMatches.modifiers);
+                      break;//we break here as is matching on keys with the same modifiers
+                      
                   }
               }
           }
-          if (!matches && keyValues) {
-              for (let i = 0; i < keyValues.length; i++) {
-                  var keyV = keyValues[i]
-                  matches = matchesKeyboardEvent(event, { keyValue:keyV } as KeyboardKey)
-                  if (matches) {
-                      break;
-                  }
-              }
-          }
+      } else {
+          matches = matchesKeyboardEvent(event, { keyValue, keyCode } as KeyboardKey);
       }
-      //if (!matchesKeyboardEvent(event, { keyValue, keyCode } as KeyboardKey)) {
-      //  return;
-    
+
       if (matches) {
-          onKeyHandle(event);
+          //will add a test that this passes the identifier of matched
+          onKeyHandle(event,matchingIds);
       }
     
   };
