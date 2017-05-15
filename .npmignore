@@ -1,6 +1,5 @@
 demo/
-lib/
-test/
+
 .babelrc
 .eslintrc.json
 .flowconfig
