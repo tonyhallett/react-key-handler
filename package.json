@@ -1,15 +1,13 @@
 {
   "name": "react-key-events",
   "version": "0.0.0",
-  "description": "React component to handle keyboard events derived from https://github.com/ayrton/react-key-handler",
+  "description": "React component to handle keyboard events ( derived from https://github.com/ayrton/react-key-handler )",
   "homepage": "",
   "author": {
     "name": "Tony Hallett"
   },
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/ayrton/react-key-handler/issues"
-  },
+
   "main": "dist/index.js",
   "keywords": [
     "react",
