@@ -222,14 +222,14 @@ export interface KeyMatchesMethodName {
     keyMatches: KeyMatches,
     methodName: string
 }
-type DecoratorProps = {
+export interface DecoratorProps {
   keyValue?: string,
   keyCode?: number,
   keyEventName?: KeyEventNames,//**************************** not sure if this can be optional
   keyMatches?: Array<KeyMatchesMethodName> | KeyMatches
 }
 
-type KeyHandleDecoratorState = {
+export interface KeyHandleDecoratorState {
   keyValue?: string,
   keyCode?: number,
   modifiers?: KeyModifiersEnum
@@ -239,103 +239,105 @@ type KeyHandleDecoratorState = {
  * KeyHandler decorators.
  */
 
-
+//...any: any[]
 function keyHandleDecorator<P>(matcher?: typeof matchesKeyboardEvent) {
-    return (props?: DecoratorProps): (component: new (...any: any[]) => React.Component<P & KeyHandleDecoratorState, any>) => new (...any: any[]) => React.Component<P & KeyHandleDecoratorState, KeyHandleDecoratorState>  => {
+    return (props?: DecoratorProps): <P>(component: React.ComponentClass<P & KeyHandleDecoratorState>) => React.ComponentClass<P & KeyHandleDecoratorState> => {
+    
         const { keyValue, keyCode, keyEventName, keyMatches } = props || {} as DecoratorProps;
 
         return (Component) => (
-            class KeyHandleDecorator extends React.Component<P & KeyHandleDecoratorState, KeyHandleDecoratorState> {
+            //the decorator needs to have the same property interface 
+            class KeyHandleDecorator extends React.Component<P, KeyHandleDecoratorState> {
                 state: KeyHandleDecoratorState = { keyValue: null, keyCode: null, modifiers:null };
 
-        wrappedInstance: any;
+                wrappedInstance: any;
         
-        render() {
-            function isKeyMatchesMethodName(toDetermine: string | ModKey | KeyMatchesMethodName): toDetermine is KeyMatchesMethodName {
-                return (toDetermine as KeyMatchesMethodName).methodName !== undefined;
-            }
-            var mappedKeyMatches = keyMatches as KeyMatches;
-            
-            if (keyMatches) {
-                if (keyMatches instanceof Array) {
-                    var testEntry = keyMatches[0];
-                    if (isKeyMatchesMethodName(testEntry)) {
-                        var keyMatchesMethodNameArray = keyMatches as KeyMatchesMethodName[];
-                        var allModKeys: ModKey[]=[]
-                        keyMatchesMethodNameArray.forEach(keyMatchesMethodName => {
-                            var methodName = keyMatchesMethodName.methodName;
-                            var kMatches = keyMatchesMethodName.keyMatches;
-                            var modKeys: ModKey[];
-                            if (kMatches instanceof Array) {
-                                var tEntry = kMatches[0];
-                                if (typeof tEntry === 'string') {
-                                    var anyKeyModifiers = keyModifiersAny();
-                                    modKeys = (kMatches as string[]).map(kMatch => {
-                                        var modKey: ModKey = {
-                                            key: kMatch,
-                                            modifiers: anyKeyModifiers
-                                        }
-                                        return modKey;
-                                    });
-                                } else {
-                                    modKeys = kMatches as ModKey[];
-                                }
-
-                            } else {
-                                var modifiers = kMatches.modifiers;
-                                modKeys = kMatches.keys.map(key => {
-                                    var modKey: ModKey = {
-                                        key: key,
-                                        modifiers: modifiers
-                                    }
-                                    return modKey;
-                                })
-                            }
-                            modKeys.forEach(modKey => modKey.id = methodName);
-                            allModKeys = allModKeys.concat(modKeys);
-
-                        });
-                        mappedKeyMatches = allModKeys;
+                render() {
+                    function isKeyMatchesMethodName(toDetermine: string | ModKey | KeyMatchesMethodName): toDetermine is KeyMatchesMethodName {
+                        return (toDetermine as KeyMatchesMethodName).methodName !== undefined;
                     }
-                } 
-            }
+                    var mappedKeyMatches = keyMatches as KeyMatches;
+            
+                    if (keyMatches) {
+                        if (keyMatches instanceof Array) {
+                            var testEntry = keyMatches[0];
+                            if (isKeyMatchesMethodName(testEntry)) {
+                                var keyMatchesMethodNameArray = keyMatches as KeyMatchesMethodName[];
+                                var allModKeys: ModKey[]=[]
+                                keyMatchesMethodNameArray.forEach(keyMatchesMethodName => {
+                                    var methodName = keyMatchesMethodName.methodName;
+                                    var kMatches = keyMatchesMethodName.keyMatches;
+                                    var modKeys: ModKey[];
+                                    if (kMatches instanceof Array) {
+                                        var tEntry = kMatches[0];
+                                        if (typeof tEntry === 'string') {
+                                            var anyKeyModifiers = keyModifiersAny();
+                                            modKeys = (kMatches as string[]).map(kMatch => {
+                                                var modKey: ModKey = {
+                                                    key: kMatch,
+                                                    modifiers: anyKeyModifiers
+                                                }
+                                                return modKey;
+                                            });
+                                        } else {
+                                            modKeys = kMatches as ModKey[];
+                                        }
+
+                                    } else {
+                                        var modifiers = kMatches.modifiers;
+                                        modKeys = kMatches.keys.map(key => {
+                                            var modKey: ModKey = {
+                                                key: key,
+                                                modifiers: modifiers
+                                            }
+                                            return modKey;
+                                        })
+                                    }
+                                    modKeys.forEach(modKey => modKey.id = methodName);
+                                    allModKeys = allModKeys.concat(modKeys);
+
+                                });
+                                mappedKeyMatches = allModKeys;
+                            }
+                        } 
+                    }
             
 
-          return (
-              <div>
-                  <KeyHandler keyValue={keyValue} keyCode={keyCode} keyMatches={mappedKeyMatches} keyEventName={keyEventName} onKeyHandle={this.handleKey} />
-                  <Component ref={(instance) => { this.wrappedInstance = instance; }} {...this.props} {...this.state} />
-            </div>
-          );
-        }
+                  return (
+                      <div>
+                          <KeyHandler keyValue={keyValue} keyCode={keyCode} keyMatches={mappedKeyMatches} keyEventName={keyEventName} onKeyHandle={this.handleKey} />
+                          <Component ref={(instance) => { this.wrappedInstance = instance; }} {...this.props} {...this.state} />
+                    </div>
+                  );
+                }
 
-        handleKey = (event: KeyboardEvent, ids: any[]): void => {
-          if (matcher && matcher(event, this.state)) {
-            this.setState({ keyValue: null, keyCode: null });
-            return;
-            }
-          var modifiers = KeyModifiersEnum.none;
-          if (event.altKey) {
-              modifiers |= KeyModifiersEnum.alt;
-          }
-          if (event.ctrlKey) {
-              modifiers |= KeyModifiersEnum.ctrl;
-          }
-          if (event.shiftKey) {
-              modifiers |= KeyModifiersEnum.shift;
-          }
-          var keyValue = eventKey(event);
-          var keyCode = event.keyCode;
-          if (ids.length > 0) {
-              ids.forEach(methodName => {
-                  this.wrappedInstance[methodName](event, keyValue, keyCode, modifiers);
-              })
+                handleKey = (event: KeyboardEvent, ids: any[]): void => {
+                  if (matcher && matcher(event, this.state)) {
+                    this.setState({ keyValue: null, keyCode: null });
+                    return;
+                    }
+                  var modifiers = KeyModifiersEnum.none;
+                  if (event.altKey) {
+                      modifiers |= KeyModifiersEnum.alt;
+                  }
+                  if (event.ctrlKey) {
+                      modifiers |= KeyModifiersEnum.ctrl;
+                  }
+                  if (event.shiftKey) {
+                      modifiers |= KeyModifiersEnum.shift;
+                  }
+                  var keyValue = eventKey(event);
+                  var keyCode = event.keyCode;
+                  if (ids.length > 0) {
+                      ids.forEach(methodName => {
+                          this.wrappedInstance[methodName](event, keyValue, keyCode, modifiers);
+                      })
 
-          }
-          this.setState({ keyValue: keyValue, keyCode: keyCode, modifiers: modifiers });
+                  }
+                  this.setState({ keyValue: keyValue, keyCode: keyCode, modifiers: modifiers });
           
-        };
-      }
+                };
+            }
     );
   };
 }
@@ -348,3 +350,5 @@ export const keyToggleHandler = keyHandleDecorator(matchesKeyboardEvent);
  */
 
 export * from './constants';
+
+

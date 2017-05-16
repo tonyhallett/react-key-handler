@@ -265,7 +265,7 @@ describe('keyHandler hoc', () => {
     })
     describe('should call all matching callbacks with the KeyboardEvent, keyValue and  modifiers enum', () => {
         it('single match', () => {
-            
+            //forgot that could still have mounted and used getDOMNode
             ReactDOM.render(<CallbackWrappedMatchesAAnySingle/>,
                 document.body);
             triggerKeyEvent("keypress", 65, "A");

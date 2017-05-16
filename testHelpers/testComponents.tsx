@@ -1,4 +1,4 @@
-import { keyHandler, AndOr, KeyMatchesMethodName, ModKey, keyModifiersAny, ModForKeys, KeyModifiers, KeyModifiersEnum} from '../lib/key-handler'
+import { keyHandler, AndOr, KeyMatchesMethodName, ModKey, keyModifiersAny, ModForKeys, KeyModifiers, KeyModifiersEnum, KeyHandleDecoratorState} from '../lib/key-handler'
 import * as React from "react";
 
 export interface KeyProps {
@@ -11,7 +11,7 @@ export interface CallbackState extends KeyProps {
     keyCallbackCalled: boolean,
     keyCallback2Called:boolean
 }
-export class Wrapped extends React.Component<KeyProps, undefined> {
+export class Wrapped extends React.Component<KeyProps & KeyHandleDecoratorState, undefined> {
 
     render() {
         return <div></div>
@@ -54,7 +54,7 @@ export class CallbackWrapped extends React.Component<undefined, CallbackState> {
 export interface OwnProps {
     stringProp:string
 }
-export class WrappedWithProp extends React.Component<OwnProps, undefined>{
+export class WrappedWithProp extends React.Component<OwnProps & KeyHandleDecoratorState, undefined>{
     render() {
         return <div>{this.props.stringProp}</div>
     }
@@ -248,4 +248,4 @@ export var CallbackWrappedMatchesAMultiple = keyHandler({
     ]
 })(CallbackWrapped);
 
-export var WrappedHasOwnProp= keyHandler({ keyEventName: "keypress", keyMatches: ["A"] })(WrappedWithProp);
+export var WrappedHasOwnProp = keyHandler({ keyEventName: "keypress", keyMatches: ["A"] })(WrappedWithProp);
